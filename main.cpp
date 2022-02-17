@@ -6,8 +6,6 @@ Skeleton code for linear hash indexing
 #include <ios>
 #include <fstream>
 #include <vector>
-#include <string>
-#include <string.h>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
@@ -21,9 +19,26 @@ int main(int argc, char* const argv[]) {
     // Create the index
     LinearHashIndex emp_index("EmployeeIndex");
     emp_index.createFromFile("Employee.csv");
+    int search_id = 0;
+    bool going = true;
+    int check = 0;
     
     // Loop to lookup IDs until user is ready to quit
-    
+    while (going){
+        cout << "Enter an ID: ";
+        cin >> search_id;
+        cout << "Search for " << search_id;
+        // Area for actual Search  // 
+
+        /////////////////////////////
+        cout << "Do you want to quit(1: Yes, 0: No): ";
+        cin >> check;
+
+        if (check == 1){
+            going = false;
+        }
+        
+    }
 
     return 0;
 }
