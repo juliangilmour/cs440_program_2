@@ -3,6 +3,7 @@
 #include <iostream>
 #include <sstream>
 #include <bitset>
+#include <queue>
 using namespace std;
 
 class Record {
@@ -28,9 +29,9 @@ public:
 class Block {
 public:
     int numRecords = 0;
-    int overflow = 0;
+    int overflow = -1;
     vector<Record> records;
-
+    Block();
     Block(string data){
         stringstream ss(data);
         string temp;
@@ -83,7 +84,7 @@ private:
     int numBlocks; // n
     int i;
     int numRecords; // Records in index
-    int nextFreePage; // Next page to write to
+    priority_queue<int> nextFreeBlock; // Next page to write to
 	string fName;
     fstream index_record_file; 
 
@@ -99,35 +100,59 @@ private:
 			index_record_file.open("EmployeeIndex.csv");
         }
 
+        
+
         //1 find where its going
         // Line of EmployeeIndex
-        int location_of_page = pageDirectory[hashId(record.id)] * PAGE_SIZE;
+        int location_of_page = pageDirectory[hashId(record.id)];
         
+
+        
+
         //2 get the "block"
         //find the spot? ie the size, check pagesize - size to see if size fits else go to overflow 
+        // Gets the block by calling getBlock with the location index
+        Block buffer1 = getBlockFromRecord(location_of_page);
 
         // Finds size of record by getting all real sizes
         int record_size = 16 + strlen(record.name.c_str()) + strlen(record.bio.c_str());
         // Looking to see there is not enough room in block to add record to it  
         // Not enough room go to over flow
-        
-        // There is enough room to write this record to the block
-        if(block_sizes[location_of_page/PAGE_SIZE] < PAGE_SIZE && block_sizes[location_of_page/PAGE_SIZE] + record_size < PAGE_SIZE){
-            // Gets the block by calling getBlock with the location index
-            Block temp = getBlock(location_of_page);
-            // Encodes the block
-            string encoded_record = temp.encode();
-            // WRITE NEW RECORD 
             
-            // Updating size of block
-            block_sizes[location_of_page/PAGE_SIZE] += record_size;
-            
-        }
-        // Not enough room so need for new block
-        else if (true){
-            
-        }
-        
+        do{///TODO while flag_has_inserted == false
+
+            // There is enough room to write this record to the block
+            if(block_sizes[location_of_page] < PAGE_SIZE && block_sizes[location_of_page] + record_size < PAGE_SIZE){
+                
+                // Encodes the block
+                buffer1.records.push_back(record);
+                buffer1.numRecords++;
+                string output_to_buffer = buffer1.encode(); 
+                // Updating size of block
+                block_sizes[location_of_page/PAGE_SIZE] += output_to_buffer.length();//strlen(buffer1.encode().c_str());
+                // Writes encoded block
+                putBackInBlock(output_to_buffer, location_of_page);
+                numRecords++;
+            }
+            // Not enough room so need for new block
+            // For do while to find the end of buffer
+            location_of_page = buffer1.overflow;
+            if (block_sizes[location_of_page] + record_size > PAGE_SIZE){
+                Block buffer2 = getBlockFromRecord(location_of_page);
+                if (numRecords == 0){
+                    buffer1.overflow = nextFreeBlock[0];
+                    // POP PQ
+                    numBlocks++;
+                }
+                // if num records == 0,
+                //  set last pointer to num_blocks
+                //  n++
+                //
+
+
+            }
+
+        }while(location_of_page != -1);
 
             // find space in blocksize == 0
             // get index
@@ -143,6 +168,11 @@ private:
         // Take neccessary steps if capacity is reached
 
 
+        //TODO/////////
+        //dowesplit?
+        //if yes, SPLIT
+        ////////////////
+
     }
     
     int hashId(int id){
@@ -150,11 +180,22 @@ private:
 		//return (id%(int)pow(2,16) && ((1 << i) - 1))
 	}
 
-    Block getBlock(int loc){
-        index_record_file.seekg(0,loc);
+    Block getBlockFromRecord(int loc){
+        if(loc == -1) return Block();
+        index_record_file.seekg(0, loc * PAGE_SIZE);
         char buffer[4097] = {0};
-        index_record_file.get(buffer, PAGE_SIZE);
-        
+        index_record_file.read(buffer, PAGE_SIZE);
+        // if(buffer[0] = 0){
+        //     return Block();
+        // }
+        return Block(string(buffer));
+    }
+
+    void putBackInBlock(string output, int loc){
+        index_record_file.seekg(0, loc * PAGE_SIZE);
+        char buffer[4097] = {0};
+        strcpy(buffer, output.c_str());
+        index_record_file.write(buffer, PAGE_SIZE);
     }
 
 public:
