@@ -49,11 +49,11 @@ private:
             // Initialize index with first blocks (start with 2)
 			numBlocks = 2;
 			pageDirectory.resize(pow(2, i));
+			//create output file
 
         }
 
         // Add record to the index in the correct block, creating overflow block if necessary
-
 
         // Take neccessary steps if capacity is reached
 
