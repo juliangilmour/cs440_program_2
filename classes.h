@@ -4,6 +4,8 @@
 #include <sstream>
 #include <bitset>
 #include <queue>
+// Added for strlen
+#include <cstring>
 using namespace std;
 
 class Record {
@@ -139,15 +141,19 @@ private:
             location_of_page = buffer1.overflow;
             if (block_sizes[location_of_page] + record_size > PAGE_SIZE){
                 Block buffer2 = getBlockFromRecord(location_of_page);
+                // No blocks initailized 
+// DO WE NEED THIS IF STATMENT
+                // becuause its the same concept if it there are records
                 if (numRecords == 0){
-                    buffer1.overflow = nextFreeBlock[0];
-                    // POP PQ
+                    // Sets the top value of the PQ for the overflow
+                    buffer1.overflow = nextFreeBlock.top();
+                    // Deletes the top value freeing it. 
+                    nextFreeBlock.pop();
+                    // Increments number of blocks 
                     numBlocks++;
                 }
-                // if num records == 0,
-                //  set last pointer to num_blocks
-                //  n++
-                //
+                // Blocks have been initialized
+
 
 
             }
@@ -180,9 +186,13 @@ private:
 		//return (id%(int)pow(2,16) && ((1 << i) - 1))
 	}
 
+    // Getting some more errors here related to this being in the LinearHashIndex Class /////////////////////////////////////////////////////////////////////
+
     Block getBlockFromRecord(int loc){
         if(loc == -1) return Block();
-        index_record_file.seekg(0, loc * PAGE_SIZE);
+        // Was getting error when compiling, 
+        // index_record_file.seekg(0, loc * PAGE_SIZE);
+        index_record_file.seekg(loc * PAGE_SIZE);
         char buffer[4097] = {0};
         index_record_file.read(buffer, PAGE_SIZE);
         // if(buffer[0] = 0){
@@ -192,7 +202,9 @@ private:
     }
 
     void putBackInBlock(string output, int loc){
-        index_record_file.seekg(0, loc * PAGE_SIZE);
+        // Was getting error when compiling, 
+        // index_record_file.seekg(0, loc * PAGE_SIZE);
+        index_record_file.seekg(loc * PAGE_SIZE);
         char buffer[4097] = {0};
         strcpy(buffer, output.c_str());
         index_record_file.write(buffer, PAGE_SIZE);

@@ -30,6 +30,21 @@ int main(int argc, char* const argv[]) {
         cout << "Search for " << search_id;
         // Area for actual Search  // 
 
+        // Hash serch_id
+
+        // get pageDirectory[HashedID] * Pagesize
+        
+        // Open filestream of EmployeeIndex.csv
+
+        // Get block read from file
+
+        // Decode
+
+        // Match ID to ID from block
+
+        // Return Record
+
+
         /////////////////////////////
         cout << "Do you want to quit(1: Yes, 0: No): ";
         cin >> check;
