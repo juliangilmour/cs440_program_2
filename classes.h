@@ -85,13 +85,16 @@ class LinearHashIndex {
 
 private:
     const int PAGE_SIZE = 4096;
+	// const int BLOCK_OVERHEAD = 18;
 	int block_size;
 
     vector<int> pageDirectory;  // Where pageDirectory[h(id)] gives page index of block
                                 // can scan to pages using index*PAGE_SIZE as offset (using seek function)
     vector<int> block_sizes;
     
-    int numBlocks; // n
+    int numBuckets; // n
+	int nextAvailableBlock;
+	// int sizeOfAllRecords;
     int i;
     int numRecords; // Records in index
     priority_queue<int> nextFreeBlock; // Next page to write to
@@ -109,28 +112,19 @@ private:
         // No records written to index yet
         if (numRecords == 0) {
             // Initialize index with first blocks (start with 2)
-			numBlocks = 2;
+			numBuckets = 2;
+			nextAvailableBlock = 2;
+			// sizeOfAllRecords = 0;
+
 			pageDirectory.resize(pow(2, i));
             block_sizes.resize(pageDirectory.size());
-			// index_record_file.open("EmployeeIndex.csv");
+			pageDirectory[0] = 0;
+			pageDirectory[1] = 1;
         }
 
-        
-        
-
-        
-
-        //2 get the "block"
-        //find the spot? ie the size, check pagesize - size to see if size fits else go to overflow 
-        // Gets the block by calling getBlock with the location index
         int location_of_page = pageDirectory[hashId(record.id)];
-        
-
-        // Finds size of record by getting all real sizes
         int record_size = 19 + strlen(record.name.c_str()) + strlen(record.bio.c_str());//16->19 because 3 delimiters
-        // Looking to see there is not enough room in block to add record to it  
-        // Not enough room go to over flow
-        // bool flagInserted = false;
+        
         while(1){
 			buffer1 = getBlockFromRecord(location_of_page);
             // There is enough room to write this record to the block
@@ -138,6 +132,7 @@ private:
                 
                 // Encodes the block
                 buffer1.records.push_back(record);
+				// block_sizes[location_of_page] += record_size; //update sum of all records
                 buffer1.numRecords++;
                 numRecords++;
                 buffer3 = buffer1.encode();
@@ -148,30 +143,48 @@ private:
 				// flagInserted = true;
 				return;
             }
-            // Not enough room so need for new block
-            // For do while to find the end of buffer
-            location_of_page = buffer1.overflow;
-			if(location_of_page == 0){
-
+            
+			
+			//does not fit, go to overflow
+			///if overflow exists
+			if(buffer1.overflow){
+				location_of_page = buffer1.overflow;
+				// continue;
+			}
+			//overflow does not exist yet
+			else{
+				//there are available blocks to overflow into (should be empty and initialized)
 				if(nextFreeBlock.size()){
-					location_of_page = nextFreeBlock.top();
+					//buffer1 overflow is updated with block from pq then returned to file
+					buffer1.overflow = nextFreeBlock.top();
 					nextFreeBlock.pop();
-					numBlocks++;
-					buffer1.overflow = location_of_page;
+					buffer3 = buffer1.encode();
+					putBackInBlock(buffer3, location_of_page);
+
+					//next iteration is at the overflow block
+					location_of_page = buffer1.overflow;
+					continue;
 				}
+				//create a new block to overflow into (should be empty and uninitialized)
 				else{
-					location_of_page = numBlocks;
-					numBlocks++;
-                    
-                    buffer1.records.push_back(record);
-                    buffer1.numRecords++;
-                    numRecords++;
-                    buffer3 = buffer1.encode();
-                    // Updating size of block
-                    block_sizes[location_of_page] = buffer3.length();//strlen(buffer1.encode().c_str());
-                    // Writes encoded block
-                    putBackInBlock(buffer3, location_of_page);
-                    return;
+					//put set overflow as a new block at the end of the file thne return to file
+					buffer1.overflow = nextAvailableBlock;
+					nextAvailableBlock++;
+					buffer3 = buffer1.encode();
+					block_sizes[location_of_page] = buffer3.length();
+					putBackInBlock(buffer3, location_of_page);
+					//will try to insert at overflow next iteration
+					location_of_page = nextAvailableBlock;
+                    // continue;
+                    // buffer1.records.push_back(record);
+                    // buffer1.numRecords++;
+                    // numRecords++;
+                    // buffer3 = buffer1.encode();
+                    // // Updating size of block
+                    // // block_sizes[location_of_page] = buffer3.length();//strlen(buffer1.encode().c_str());
+                    // // Writes encoded block
+                    // putBackInBlock(buffer3, location_of_page);
+                    // return;
 				}
 
 		    }
@@ -186,8 +199,8 @@ private:
     }
     
     int hashId(int id){
-		//return id%(int)pow(2, i);
-		return (id%(int)pow(2,16) && ((1 << i) - 1));
+		return id%(int)pow(2, i);
+		// return (id%(int)pow(2,16) && ((1 << i) - 1));
 	}
 
     // Getting some more errors here related to this being in the LinearHashIndex Class /////////////////////////////////////////////////////////////////////
@@ -199,13 +212,13 @@ private:
         // Was getting error when compiling, 
         // index_record_file.seekg(0, loc * PAGE_SIZE);
         index_record_file.seekg(loc * PAGE_SIZE);
-        char iobuffer[4097] = {'%'};
-		iobuffer[4096] = 0;
+        char iobuffer[4097] = {0};
+		// iobuffer[4096] = 0;
         index_record_file.read(iobuffer, PAGE_SIZE);
-        if(iobuffer[0] == '%'){
-			Block newBlock = Block();
+        if(iobuffer[0] == 0){
+			// Block newBlock = Block();
 			index_record_file.close();
-            return newBlock;
+            return Block();
         }
 		index_record_file.close();
         return Block(string(iobuffer));
@@ -217,8 +230,8 @@ private:
         // Was getting error when compiling, 
         // index_record_file.seekg(0, loc * PAGE_SIZE);
         index_record_file.seekg(loc * PAGE_SIZE);
-        char iobuffer[4097] = {'%'};
-		iobuffer[4096] = 0;
+        char iobuffer[4097] = {0};
+		// iobuffer[4096] = 0;
         strcpy(iobuffer, output.c_str());
         index_record_file.write(iobuffer, PAGE_SIZE);
 		index_record_file.close();
@@ -227,7 +240,7 @@ private:
 
 public:
     LinearHashIndex(string indexFileName) {
-        numBlocks = 0;
+        numBuckets = 0;
         i = 1;
         numRecords = 0;
         block_size = PAGE_SIZE;

@@ -3,6 +3,12 @@
 		"xstring": "cpp",
 		"bitset": "cpp",
 		"string": "cpp",
-		"iosfwd": "cpp"
+		"iosfwd": "cpp",
+		"deque": "cpp",
+		"initializer_list": "cpp",
+		"queue": "cpp",
+		"type_traits": "cpp",
+		"vector": "cpp",
+		"xutility": "cpp"
 	}
 }
