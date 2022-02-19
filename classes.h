@@ -226,10 +226,10 @@ private:
 
     void putBackInBlock(string output, int loc){
 		fstream index_record_file;
-		index_record_file.open("EmployeeIndex.csv", fstream::out);
+		index_record_file.open("EmployeeIndex.csv", fstream::out | fstream::app);
         // Was getting error when compiling, 
         // index_record_file.seekg(0, loc * PAGE_SIZE);
-        index_record_file.seekg(loc * PAGE_SIZE);
+        index_record_file.seekp(loc * PAGE_SIZE);
         char iobuffer[4097] = {0};
 		// iobuffer[4096] = 0;
         strcpy(iobuffer, output.c_str());
