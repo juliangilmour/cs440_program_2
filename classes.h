@@ -31,7 +31,7 @@ public:
 class Block {
 public:
     int numRecords = 0;
-    int overflow = -1;
+    int overflow = 0;
     vector<Record> records;
 
     Block(){
@@ -151,7 +151,8 @@ private:
             // Not enough room so need for new block
             // For do while to find the end of buffer
             location_of_page = buffer1.overflow;
-			if(location_of_page == -1){
+			if(location_of_page == 0){
+
 				if(nextFreeBlock.size()){
 					location_of_page = nextFreeBlock.top();
 					nextFreeBlock.pop();
@@ -161,9 +162,19 @@ private:
 				else{
 					location_of_page = numBlocks;
 					numBlocks++;
+                    
+                    buffer1.records.push_back(record);
+                    buffer1.numRecords++;
+                    numRecords++;
+                    buffer3 = buffer1.encode();
+                    // Updating size of block
+                    block_sizes[location_of_page] = buffer3.length();//strlen(buffer1.encode().c_str());
+                    // Writes encoded block
+                    putBackInBlock(buffer3, location_of_page);
+                    return;
 				}
 
-			}
+		    }
 
         }
 
@@ -175,8 +186,8 @@ private:
     }
     
     int hashId(int id){
-		return id%(int)pow(2, i);
-		//return (id%(int)pow(2,16) && ((1 << i) - 1))
+		//return id%(int)pow(2, i);
+		return (id%(int)pow(2,16) && ((1 << i) - 1));
 	}
 
     // Getting some more errors here related to this being in the LinearHashIndex Class /////////////////////////////////////////////////////////////////////
