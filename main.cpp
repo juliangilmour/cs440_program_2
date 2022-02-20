@@ -17,7 +17,7 @@ using namespace std;
 int main(int argc, char* const argv[]) {
 
     // Create the index
-    LinearHashIndex emp_index("EmployeeIndex");
+    LinearHashIndex emp_index("EmployeeIndex.csv");
     emp_index.createFromFile("Employee.csv");
 	cout << "over" << endl;
     int search_id = 0;
