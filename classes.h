@@ -171,20 +171,11 @@ private:
 					buffer1.overflow = nextAvailableBlock;
 					nextAvailableBlock++;
 					buffer3 = buffer1.encode();
-					block_sizes[location_of_page] = buffer3.length();
+					// block_sizes[location_of_page] = buffer3.length();
+					block_sizes.push_back(0);
 					putBackInBlock(buffer3, location_of_page);
 					//will try to insert at overflow next iteration
-					location_of_page = nextAvailableBlock;
-                    // continue;
-                    // buffer1.records.push_back(record);
-                    // buffer1.numRecords++;
-                    // numRecords++;
-                    // buffer3 = buffer1.encode();
-                    // // Updating size of block
-                    // // block_sizes[location_of_page] = buffer3.length();//strlen(buffer1.encode().c_str());
-                    // // Writes encoded block
-                    // putBackInBlock(buffer3, location_of_page);
-                    // return;
+					location_of_page = buffer1.overflow;
 				}
 
 		    }
@@ -201,7 +192,7 @@ private:
     int hashId(int id){
 		return id%(int)pow(2, i);
 		// return (id%(int)pow(2,16) && ((1 << i) - 1));
-	}
+	} 
 
     // Getting some more errors here related to this being in the LinearHashIndex Class /////////////////////////////////////////////////////////////////////
 
@@ -226,10 +217,11 @@ private:
 
     void putBackInBlock(string output, int loc){
 		fstream index_record_file;
-		index_record_file.open("EmployeeIndex.csv", fstream::out | fstream::app);
-        // Was getting error when compiling, 
-        // index_record_file.seekg(0, loc * PAGE_SIZE);
-        index_record_file.seekp(loc * PAGE_SIZE);
+		index_record_file.open(fName, ios::in | ios::out);
+		index_record_file.clear();
+        index_record_file.seekp(loc * PAGE_SIZE, ios::beg);
+		int helpme = index_record_file.tellp();
+		// index_record_file << output;
         char iobuffer[4097] = {0};
 		// iobuffer[4096] = 0;
         strcpy(iobuffer, output.c_str());
@@ -245,6 +237,7 @@ public:
         numRecords = 0;
         block_size = PAGE_SIZE;
         fName = indexFileName;
+		ofstream output(fName);
     }
 
     // Read csv file and add records to the index
