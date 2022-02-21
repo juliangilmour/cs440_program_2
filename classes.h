@@ -86,7 +86,7 @@ class LinearHashIndex {
 private:
     const int PAGE_SIZE = 4096;
 	// const int BLOCK_OVERHEAD = 18;
-	int block_size;
+	// int block_size;
 
     vector<int> pageDirectory;  // Where pageDirectory[h(id)] gives page index of block
                                 // can scan to pages using index*PAGE_SIZE as offset (using seek function)
@@ -116,23 +116,34 @@ private:
 			nextAvailableBlock = 2;
 			// sizeOfAllRecords = 0;
 
-			pageDirectory.resize(pow(2, i));
+			pageDirectory.resize(2);
             block_sizes.resize(pageDirectory.size());
 			pageDirectory[0] = 0;
 			pageDirectory[1] = 1;
         }
-
-        int location_of_page = pageDirectory[hashId(record.id)];
+		
+		int m = hashId(record.id);//hash value
+        int location_of_page;
         int record_size = 19 + strlen(record.name.c_str()) + strlen(record.bio.c_str());//16->19 because 3 delimiters
         
+		//check if it goes in a bucket we are already using
+		if(m <= numBuckets - 1){
+			location_of_page = pageDirectory[m];;
+		}
+			//m is a ghost bucket
+		else{
+			m = m%(int)pow(2, i-1);
+			location_of_page = pageDirectory[m];//shift 1 bit over for ghosts BOO!
+		}
         while(1){
+			//hash target is in an existing bucket
+			
 			buffer1 = getBlockFromRecord(location_of_page);
             // There is enough room to write this record to the block
             if(block_sizes[location_of_page] + record_size < PAGE_SIZE){
                 
                 // Encodes the block
                 buffer1.records.push_back(record);
-				// block_sizes[location_of_page] += record_size; //update sum of all records
                 buffer1.numRecords++;
                 numRecords++;
                 buffer3 = buffer1.encode();
@@ -141,10 +152,8 @@ private:
                 // Writes encoded block
                 putBackInBlock(buffer3, location_of_page);
 				// flagInserted = true;
-				return;
+				break;
             }
-            
-			
 			//does not fit, go to overflow
 			///if overflow exists
 			if(buffer1.overflow){
@@ -163,7 +172,7 @@ private:
 
 					//next iteration is at the overflow block
 					location_of_page = buffer1.overflow;
-					continue;
+					// continue;
 				}
 				//create a new block to overflow into (should be empty and uninitialized)
 				else{
@@ -181,16 +190,35 @@ private:
 		    }
 
         }
+		
+		//SPLIT
 
-        //TODO/////////
-        //dowesplit?
-        //if yes, SPLIT
-        ////////////////
+		//get size
+		int fileSize = 0;
+		for (int i = 0; i < nextAvailableBlock; i++){
+			fileSize += block_sizes[i];
+		}
+		if((float)fileSize/(float)(numBuckets * PAGE_SIZE) >= .7){
+			int n = numBuckets; //hash value of new bucket
+			if(nextFreeBlock.size()){
+				pageDirectory.push_back(nextFreeBlock.top());
+				nextFreeBlock.pop();
+			}
+			else{
+				pageDirectory.push_back(nextAvailableBlock);
+				nextAvailableBlock++;
+
+			}
+			numBuckets++;
+			int n1 = n%(int)pow(2, i-1);//hash value of bucket that was used when this was a ghost bucket
+		}
+
 
     }
     
     int hashId(int id){
-		return id%(int)pow(2, i);
+		i = ceil(log2(float(numBuckets)));
+		return (id%(int)pow(2,i));
 		// return (id%(int)pow(2,16) && ((1 << i) - 1));
 	} 
 
