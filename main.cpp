@@ -17,12 +17,17 @@ using namespace std;
 int main(int argc, char* const argv[]) {
 
     // Create the index
+	int id = 48569047;
+	int n = 5;
+	int m = 9;
+	// int i = ceil(log2(float(n)));
+	//cout << i << " " << m / (int)pow(2, i-1) << endl;
     LinearHashIndex emp_index("EmployeeIndex.csv");
     emp_index.createFromFile("Employee.csv");
 	cout << "over" << endl;
-    int search_id = 0;
-    bool going = true;
-    int check = 0;
+    // int search_id = 0;
+    // bool going = true;
+    // int check = 0;
     
     // Loop to lookup IDs until user is ready to quit
     // while (going){

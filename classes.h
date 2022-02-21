@@ -86,7 +86,7 @@ class LinearHashIndex {
 private:
     const int PAGE_SIZE = 4096;
 	// const int BLOCK_OVERHEAD = 18;
-	int block_size;
+	// int block_size;
 
     vector<int> pageDirectory;  // Where pageDirectory[h(id)] gives page index of block
                                 // can scan to pages using index*PAGE_SIZE as offset (using seek function)
@@ -103,6 +103,7 @@ private:
 
 	//our 3 buffers
 	Block buffer1;// buffer2;
+    Block buffer2;
 	string buffer3;
 	//////////////
 
@@ -116,23 +117,34 @@ private:
 			nextAvailableBlock = 2;
 			// sizeOfAllRecords = 0;
 
-			pageDirectory.resize(pow(2, i));
+			pageDirectory.resize(2);
             block_sizes.resize(pageDirectory.size());
 			pageDirectory[0] = 0;
 			pageDirectory[1] = 1;
         }
-
-        int location_of_page = pageDirectory[hashId(record.id)];
+		
+		int m = hashId(record.id);//hash value
+        int location_of_page;
         int record_size = 19 + strlen(record.name.c_str()) + strlen(record.bio.c_str());//16->19 because 3 delimiters
         
+		//check if it goes in a bucket we are already using
+		if(m <= numBuckets - 1){
+			location_of_page = pageDirectory[m];;
+		}
+			//m is a ghost bucket
+		else{
+			m = m%(int)pow(2, i-1);
+			location_of_page = pageDirectory[m];//shift 1 bit over for ghosts BOO!
+		}
         while(1){
+			//hash target is in an existing bucket
+			
 			buffer1 = getBlockFromRecord(location_of_page);
             // There is enough room to write this record to the block
             if(block_sizes[location_of_page] + record_size < PAGE_SIZE){
                 
                 // Encodes the block
                 buffer1.records.push_back(record);
-				// block_sizes[location_of_page] += record_size; //update sum of all records
                 buffer1.numRecords++;
                 numRecords++;
                 buffer3 = buffer1.encode();
@@ -141,10 +153,8 @@ private:
                 // Writes encoded block
                 putBackInBlock(buffer3, location_of_page);
 				// flagInserted = true;
-				return;
+				break;
             }
-            
-			
 			//does not fit, go to overflow
 			///if overflow exists
 			if(buffer1.overflow){
@@ -163,7 +173,7 @@ private:
 
 					//next iteration is at the overflow block
 					location_of_page = buffer1.overflow;
-					continue;
+					// continue;
 				}
 				//create a new block to overflow into (should be empty and uninitialized)
 				else{
@@ -181,20 +191,103 @@ private:
 		    }
 
         }
+		
+		//SPLIT
+        
+		//get size
+		int fileSize = 0;
+		for (int i = 0; i < nextAvailableBlock; i++){
+			fileSize += block_sizes[i];
+		}
 
-        //TODO/////////
-        //dowesplit?
-        //if yes, SPLIT
-        ////////////////
+        // check size for 70%
+		if((float)fileSize/(float)(numBuckets * PAGE_SIZE) >= .7){
+			int n = numBuckets; //hash value of new bucket
+            
+			if(nextFreeBlock.size()){
+				pageDirectory.push_back(nextFreeBlock.top());
+				nextFreeBlock.pop();
+			}
+			else{
+				pageDirectory.push_back(nextAvailableBlock);
+				nextAvailableBlock++;
+			}
+			numBuckets++;
+			int n1 = n%(int)pow(2, i-1);//hash value of bucket that was used when this was a ghost bucket
+
+            // retrieve pagelocation[n1]
+            bool going = true;
+    // Go over this for all of the overflow blocks from n1 also
+            while(going){
+                buffer1 = getBlockFromRecord(pageDirectory[n1]);
+                // Used to go over the overflows
+
+                
+
+                
+                // rehash all  records in that block storing them in the correct locations they need to go.
+                for(int j = 1; j < buffer1.numRecords; j++){
+                    // Gets record to rehash id
+                    Record temp = buffer1.records[j];
+                    // Move if record was in a ghost block
+                    if( hashId(temp.id) == n){
+                        // Removes the record from buffer1
+                        buffer1.records.erase(buffer1.records.begin()+j);
+                        buffer1.numRecords--;
+                        // add to a new block then write it
+                        buffer2.records.push_back(temp);
+                        // For after deleting staying in place so that it can check the record that moved down one place
+                        j--;
+                    }
+                }
+                // Moved all records changes to overflow
+                int temp_overflow = buffer1.overflow;
+                if (!buffer1.overflow) {
+                    going = false;
+                    
+                }
+                else{
+                    n1 = buffer1.overflow;
+                }
+                
+                // Check for overflows being empty and if so revert them back to availible block
+
+                
+
+
+            }
+            // Rewrite buffer1 and buffer2
+            // turn both into string
+            // Old Block being put back
+            buffer3 = buffer1.encode();
+            // Location 
+            block_sizes[n1] = buffer3.length();
+            location_of_page = pageDirectory[n1];
+            putBackInBlock(buffer3, location_of_page);
+
+            // New block put in
+            buffer3 = buffer2.encode();
+            // Location 
+            // Should be the end
+            block_sizes[n] = buffer3.length();
+            location_of_page = pageDirectory[n];
+            putBackInBlock(buffer3, location_of_page);
+
+
+
+
+
+		}
+        
 
     }
     
     int hashId(int id){
-		return id%(int)pow(2, i);
+		i = ceil(log2(float(numBuckets)));
+		return (id%(int)pow(2,i));
 		// return (id%(int)pow(2,16) && ((1 << i) - 1));
 	} 
 
-    // Getting some more errors here related to this being in the LinearHashIndex Class /////////////////////////////////////////////////////////////////////
 
     Block getBlockFromRecord(int loc){
 		fstream index_record_file;
@@ -235,7 +328,7 @@ public:
         numBuckets = 0;
         i = 1;
         numRecords = 0;
-        block_size = PAGE_SIZE;
+        int block_size = PAGE_SIZE;
         fName = indexFileName;
 		ofstream output(fName);
     }
@@ -263,6 +356,16 @@ public:
 
     // Given an ID, find the relevant record and print it
     // Record findRecordById(int id) {
+    //     int m = hashId(id);
+
+    //     if(m <= numBuckets - 1){
+	// 		location_of_page = pageDirectory[m];;
+	// 	}
+	// 		//m is a ghost bucket
+	// 	else{
+	// 		m = m%(int)pow(2, i-1);
+	// 		location_of_page = pageDirectory[m];//shift 1 bit over for ghosts BOO!
+	// 	}
 
     // }
 
