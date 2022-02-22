@@ -294,7 +294,7 @@ public:
     }
 
     // Given an ID, find the relevant record and print it
-    Record findRecordById(int id) {
+    void findRecordById(int id) {
         int m = hashId(id);
         int location_of_page;
         Block buffer;
