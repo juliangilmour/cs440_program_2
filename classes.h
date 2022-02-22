@@ -103,6 +103,7 @@ private:
 
 	//our 3 buffers
 	Block buffer1;// buffer2;
+    Block buffer2;
 	string buffer3;
 	//////////////
 
@@ -192,27 +193,32 @@ private:
         }
 		
 		//SPLIT
-
+        
 		//get size
 		int fileSize = 0;
 		for (int i = 0; i < nextAvailableBlock; i++){
 			fileSize += block_sizes[i];
 		}
-		if((float)fileSize/(float)(numBuckets * PAGE_SIZE) >= .7){
-			int n = numBuckets; //hash value of new bucket
-			if(nextFreeBlock.size()){
-				pageDirectory.push_back(nextFreeBlock.top());
-				nextFreeBlock.pop();
-			}
-			else{
-				pageDirectory.push_back(nextAvailableBlock);
-				nextAvailableBlock++;
 
-			}
-			numBuckets++;
-			int n1 = n%(int)pow(2, i-1);//hash value of bucket that was used when this was a ghost bucket
-		}
+        // check size for 70%
+		// if((float)fileSize/(float)(numBuckets * PAGE_SIZE) >= .7){
+        //     cout << "Needs resizing\n";
+		// 	// int n = numBuckets; //hash value of new bucket
+            
+		// 	// if(nextFreeBlock.size()){
+		// 	// 	pageDirectory.push_back(nextFreeBlock.top());
+		// 	// 	nextFreeBlock.pop();
+		// 	// }
+		// 	// else{
+		// 	// 	pageDirectory.push_back(nextAvailableBlock);
+		// 	// 	nextAvailableBlock++;
+		// 	// }
+		// 	// numBuckets++;
+		// 	// int n1 = n%(int)pow(2, i-1);//hash value of bucket that was used when this was a ghost bucket
 
+
+		// }
+        
 
     }
     
@@ -222,19 +228,17 @@ private:
 		// return (id%(int)pow(2,16) && ((1 << i) - 1));
 	} 
 
-    // Getting some more errors here related to this being in the LinearHashIndex Class /////////////////////////////////////////////////////////////////////
 
     Block getBlockFromRecord(int loc){
 		fstream index_record_file;
 		index_record_file.open("EmployeeIndex.csv", fstream::in);
         // if(loc == -1) return Block();
-        // Was getting error when compiling, 
-        // index_record_file.seekg(0, loc * PAGE_SIZE);
+
         index_record_file.seekg(loc * PAGE_SIZE);
         char iobuffer[4097] = {0};
 		// iobuffer[4096] = 0;
         index_record_file.read(iobuffer, PAGE_SIZE);
-        if(iobuffer[0] == 0){
+        if(iobuffer[0] == 0){   
 			// Block newBlock = Block();
 			index_record_file.close();
             return Block();
@@ -263,7 +267,7 @@ public:
         numBuckets = 0;
         i = 1;
         numRecords = 0;
-        block_size = PAGE_SIZE;
+        int block_size = PAGE_SIZE;
         fName = indexFileName;
 		ofstream output(fName);
     }
@@ -290,9 +294,57 @@ public:
     }
 
     // Given an ID, find the relevant record and print it
-    // Record findRecordById(int id) {
+    Record findRecordById(int id) {
+        int m = hashId(id);
+        int location_of_page;
+        Block buffer;
+        bool found = false;
 
-    // }
 
-	
+        if(m <= numBuckets - 1){
+
+			location_of_page = pageDirectory[m];
+            buffer = getBlockFromRecord(location_of_page);
+            for(int i = 0; i < buffer.numRecords; i++){
+                if (buffer.records[i].id == id){
+                    buffer.records[i].print();
+                    found = true;
+                    break;
+                }
+                // Check overflows
+                if(i == buffer.numRecords - 1 && buffer.overflow != 0){
+                    buffer = getBlockFromRecord(buffer.overflow);
+                    i=0;
+                }
+            }
+            if (!found){
+                cout << "ID: " << id << " Not found\n";
+            }
+
+		}
+			// M is a ghost bucket
+		else{
+			m = m%(int)pow(2, i-1);
+			location_of_page = pageDirectory[m];
+            buffer = getBlockFromRecord(location_of_page);
+            for(int i = 0; i < buffer.numRecords; i++){
+                // ID found prints and breaks out
+                if (buffer.records[i].id == id){
+                    buffer.records[i].print();
+                    found = true;
+                    break;
+                }
+                // Check overflows
+               if(i == buffer.numRecords - 1 && buffer.overflow != 0){
+                    buffer = getBlockFromRecord(buffer.overflow);
+                    i=0;
+                }
+            }
+            // If there was no ID
+            if (!found){
+                cout << "ID: " << id << " Not found\n";
+            }
+		}
+    }
+
 };
